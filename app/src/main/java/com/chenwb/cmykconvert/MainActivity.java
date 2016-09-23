@@ -25,7 +25,7 @@ import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class MainActivity extends AppCompatActivity implements PointColorListener {
+public class MainActivity extends AppCompatActivity implements PointColorListener, SeekBar.OnSeekBarChangeListener {
     public static final int REQUEST_CODE_CAPTURE_CAMERA = 1;
     @Bind(R.id.capture)
     View mCapture;
@@ -73,6 +73,11 @@ public class MainActivity extends AppCompatActivity implements PointColorListene
         mScreenH = displayMetrics.heightPixels;
 
         loadImage();
+
+        mSeekC.setOnSeekBarChangeListener(this);
+        mSeekM.setOnSeekBarChangeListener(this);
+        mSeekY.setOnSeekBarChangeListener(this);
+        mSeekK.setOnSeekBarChangeListener(this);
     }
 
     @OnClick(R.id.capture)
@@ -104,20 +109,17 @@ public class MainActivity extends AppCompatActivity implements PointColorListene
         }
     }
 
-    public static Drawable resizeImage2(String path,
-                                        int width, int height)
-    {
+    public static Drawable resizeImage2(String path, int width, int height) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;//不加载bitmap到内存中
-        BitmapFactory.decodeFile(path,options);
+        BitmapFactory.decodeFile(path, options);
         int outWidth = options.outWidth;
         int outHeight = options.outHeight;
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         options.inSampleSize = 1;
 
-        if (outWidth != 0 && outHeight != 0 && width != 0 && height != 0)
-        {
-            int sampleSize=(outWidth/width+outHeight/height)/2;
+        if (outWidth != 0 && outHeight != 0 && width != 0 && height != 0) {
+            int sampleSize = (outWidth / width + outHeight / height) / 2;
             options.inSampleSize = sampleSize;
         }
 
@@ -133,9 +135,58 @@ public class MainActivity extends AppCompatActivity implements PointColorListene
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
 
-        String value = "#"+Integer.toHexString(r)
-                + Integer.toHexString(g)
-                + Integer.toHexString(b);
+        String value = String.format("#%02x%02x%02x", r, g, b);
         mColorValue.setText(value.toUpperCase());
+
+        float[] cmyk = ColorConvert.rgb2cmyk2(r, g, b);
+
+        mSeekC.setMax(100);
+        mSeekM.setMax(100);
+        mSeekY.setMax(100);
+        mSeekK.setMax(100);
+
+        mSeekC.setProgress(Math.round(cmyk[0] * 100));
+        mSeekM.setProgress(Math.round(cmyk[1] * 100));
+        mSeekY.setProgress(Math.round(cmyk[2] * 100));
+        mSeekK.setProgress(Math.round(cmyk[3] * 100));
+    }
+
+    @Override
+    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        if (fromUser) {
+            int c = mSeekC.getProgress();
+            int m = mSeekM.getProgress();
+            int y = mSeekY.getProgress();
+            int k = mSeekK.getProgress();
+            int rgb = ColorConvert.cmyk2rgb(c / 100f, m / 100f, y / 100f, k / 100f);
+            int argb = 0xff << 24 | rgb;
+
+            int r = (rgb >> 16) & 0xFF;
+            int g = (rgb >> 8) & 0xFF;
+            int b = rgb & 0xFF;
+
+            String value = String.format("#%02x%02x%02x", r, g, b);
+            mColorValue.setText(value.toUpperCase());
+
+            mCurrColor.setBackgroundColor(argb);
+        }
+        if (seekBar == mSeekC) {
+            mCValue.setText(String.format("%02d%%", progress));
+        } else if (seekBar == mSeekM) {
+            mMValue.setText(String.format("%02d%%", progress));
+        } else if (seekBar == mSeekY) {
+            mYValue.setText(String.format("%02d%%", progress));
+        } else if (seekBar == mSeekK) {
+            mKValue.setText(String.format("%02d%%", progress));
+        }
+    }
+
+
+    @Override
+    public void onStartTrackingTouch(SeekBar seekBar) {
+    }
+
+    @Override
+    public void onStopTrackingTouch(SeekBar seekBar) {
     }
 }
